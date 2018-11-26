@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # vim: set ts=4 sw=4 et :
 #
@@ -208,7 +208,7 @@ def grab(arglist, outputfd=sys.stdout):
     try:
         opts, args = getopt.getopt(
                         arglist,
-                        "hli:d:b:B:w:p:s:xrfc:taTm:e:o:QvVq:S", [
+                        "hli:d:b:B:w:p:s:xrfc:taTmj:e:o:QvVq:S", [
                             "help",
                             "launchtime",
                             "instantpat=",
@@ -224,6 +224,7 @@ def grab(arglist, outputfd=sys.stdout):
                             "time",
                             "again",
                             "systime",
+                            "json",
                             "match=",
                             "endtime=",
                             "output=",
@@ -253,6 +254,7 @@ def grab(arglist, outputfd=sys.stdout):
     force = False
     show_time = 0
     show_systime = 0
+    json = 0
     basepat = ""
     instantpat = ''
     quitpat = ''
@@ -326,11 +328,17 @@ def grab(arglist, outputfd=sys.stdout):
         if opt in ["-t", "--time"]:
             show_time = 1
             show_systime = 0
+            json = 0
+        if opt in ["-j", "--json"]:
+            show_time = 0
+            show_systime = 0
+            json = 1
         if opt in ["-a", "--again"]:
             restart = True
         if opt in ["-T", "--systime"]:
             show_time = 0
             show_systime = 1
+            json = 0
         if opt in ["-m", "--match"]:
             basepat = arg
         if opt in ["-i", "--instantpat"]:
@@ -385,6 +393,8 @@ def grab(arglist, outputfd=sys.stdout):
         vprint("Printing timing information for each line")
     if show_systime:
         vprint("Printing absolute timing information for each line")
+    if json:
+        vprint("Printing JSON logging")
     if basepat:
         vprint("Matching pattern '%s' to set base time" % basepat)
     if instantpat:
@@ -487,24 +497,56 @@ def grab(arglist, outputfd=sys.stdout):
                     out.write(msg.encode(sys.stdout.encoding))
                 prev1 = elapsed
                 newline = 0
-
+            
             if show_systime and newline:
+                # linetime = time.time()
+                # linetimestr = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                # elapsed = linetime-basetime
+                # delta = elapsed-prev1
+                # msg = "[%s %2.6f] " % (linetimestr, delta)
+                # if not quiet:
+                #     outputfd.write(msg)
+                # if out:
+                #     out.write(msg.encode(sys.stdout.encoding))
+                # prev1 = elapsed
+                # newline = 0
                 linetime = time.time()
-                linetimestr = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                linetimestr = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
                 elapsed = linetime-basetime
                 delta = elapsed-prev1
-                msg = "[%s %2.6f] " % (linetimestr, delta)
+                msg = "['{}', '".format(linetimestr)
                 if not quiet:
-                    outputfd.write(msg)
+                    if outputfd:
+                        outputfd.write(msg)
                 if out:
                     out.write(msg.encode(sys.stdout.encoding))
                 prev1 = elapsed
                 newline = 0
 
+            # JSON logging.
+            if json and newline:
+                linetime = time.time()
+                linetimestr = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                elapsed = linetime-basetime
+                delta = elapsed-prev1
+                msg = "['{}', '".format(linetimestr)
+                if not quiet:
+                    if outputfd:
+                        outputfd.write(msg)
+                if out:
+                    out.write(msg.encode(sys.stdout.encoding))
+                prev1 = elapsed
+                newline = 0
+
+            # FIXME: For some reason passing in flag for json logging hangs script.
+            # As a work around, show_systime has been taken over.
+            # new_char = b"']\n" if (x == b'\n') and json else x
+            new_char = b"']\n" if (x == b'\n') and show_systime else x
+
             # FIXTHIS - should I buffer the output here??
             if not quiet:
                 # x is a bytestr
-                outputfd.write(x.decode("utf8", "ignore"))
+                outputfd.write(new_char.decode("utf8", "ignore"))
                 # You sometimes get an error here if the serial port gives
                 # you garbage data.  This can happen, for instance, when
                 # the uart changes line speed during bootup.
@@ -524,7 +566,7 @@ def grab(arglist, outputfd=sys.stdout):
             if out:
                 # save bytestring data exactly as received from serial port
                 # (ie there is no 'decode' here)
-                out.write(x)
+                out.write(new_char)
 
             # curline is in unicode
             curline += x.decode("utf8", "ignore")
