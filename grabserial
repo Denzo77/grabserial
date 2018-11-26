@@ -359,7 +359,7 @@ def grab(arglist, outputfd=sys.stdout):
         if opt in ["-o", "--output"]:
             out_filename = arg
             if out_filename == "%":
-                out_filename = "%Y-%m-%dT%H:%M:%S"
+                out_filename = "%Y-%m-%dT%H:%M:%S.log"
             if "%" in out_filename:
                 out_filename = datetime.datetime.now().strftime(out_filename)
         if opt in ["-Q", "--quiet"]:
